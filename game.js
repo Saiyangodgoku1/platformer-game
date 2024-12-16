@@ -1,114 +1,131 @@
-// Canvas Setup
 const canvas = document.getElementById("gameCanvas");
 canvas.width = 800;
-canvas.height = 600;
+canvas.height = 400;
 const ctx = canvas.getContext("2d");
 
 // Assets
-const playerImg = new Image();
-playerImg.src = "./assets/player.png";
-
-const platformImg = new Image();
-platformImg.src = "./assets/platform.png";
-
-const bgImg = new Image();
-bgImg.src = "./assets/background.jpg";
-
-// Player Properties
-const player = {
-  x: 50,
-  y: 500,
-  width: 50,
-  height: 50,
-  dx: 0,
-  dy: 0,
-  speed: 5,
-  gravity: 0.8,
-  jumpPower: -15,
-  grounded: false,
+const explorerImages = {
+  run: [new Image(), new Image()],
+  jump: new Image(),
+  duck: new Image(),
 };
+explorerImages.run[0].src = "./assets/explorer/run1.png";
+explorerImages.run[1].src = "./assets/explorer/run2.png";
+explorerImages.jump.src = "./assets/explorer/jump.png";
+explorerImages.duck.src = "./assets/explorer/duck.png";
 
-// Platforms
-const platforms = [
-  { x: 0, y: 550, width: 800, height: 50 },
-  { x: 300, y: 400, width: 200, height: 20 },
-  { x: 600, y: 300, width: 150, height: 20 },
-];
+const dinoImages = [new Image(), new Image()];
+dinoImages[0].src = "./assets/dinosaur/run1.png";
+dinoImages[1].src = "./assets/dinosaur/run2.png";
 
-// Draw Background
-function drawBackground() {
-  ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+const rockImg = new Image();
+rockImg.src = "./assets/obstacles/rock.png";
+
+const birdImg = new Image();
+birdImg.src = "./assets/obstacles/bird.png";
+
+const roadImg = new Image();
+roadImg.src = "./assets/background/desert-road.png";
+
+// Game Variables
+let explorer = { x: 100, y: 300, width: 50, height: 50, lane: 2, speed: 3, dy: 0, jump: false, duck: false };
+let dino = { x: 50, y: 150, width: 80, height: 80, frame: 0 };
+let obstacles = [];
+let gameSpeed = 3;
+let frame = 0;
+
+// Draw Explorer
+function drawExplorer() {
+  const image = explorer.jump
+    ? explorerImages.jump
+    : explorer.duck
+    ? explorerImages.duck
+    : explorerImages.run[frame % 2];
+  ctx.drawImage(image, explorer.x, explorer.y, explorer.width, explorer.height);
 }
 
-// Draw Player
-function drawPlayer() {
-  ctx.drawImage(playerImg, player.x, player.y, player.width, player.height);
+// Draw Dinosaur
+function drawDino() {
+  ctx.drawImage(dinoImages[dino.frame % 2], dino.x, dino.y, dino.width, dino.height);
 }
 
-// Draw Platforms
-function drawPlatforms() {
-  platforms.forEach(platform => {
-    ctx.drawImage(platformImg, platform.x, platform.y, platform.width, platform.height);
+// Draw Obstacles
+function drawObstacles() {
+  obstacles.forEach(obs => {
+    const img = obs.type === "rock" ? rockImg : birdImg;
+    ctx.drawImage(img, obs.x, obs.y, obs.width, obs.height);
   });
 }
 
-// Move Player
-function movePlayer() {
-  player.y += player.dy;
-  player.x += player.dx;
+// Move Obstacles
+function moveObstacles() {
+  obstacles.forEach(obs => (obs.x -= gameSpeed));
+  obstacles = obstacles.filter(obs => obs.x + obs.width > 0);
+}
 
-  if (!player.grounded) player.dy += player.gravity;
-
-  // Check Boundaries
-  if (player.y + player.height >= canvas.height) {
-    player.y = canvas.height - player.height;
-    player.grounded = true;
-    player.dy = 0;
+// Add Obstacles
+function addObstacle() {
+  const type = Math.random() < 0.5 ? "rock" : "bird";
+  if (type === "rock") {
+    obstacles.push({ x: 800, y: 300, width: 50, height: 50, type: "rock" });
   } else {
-    player.grounded = false;
+    obstacles.push({ x: 800, y: 200, width: 50, height: 30, type: "bird" });
   }
 }
 
-// Collision Detection
-function checkCollisions() {
-  platforms.forEach(platform => {
-    if (
-      player.x < platform.x + platform.width &&
-      player.x + player.width > platform.x &&
-      player.y + player.height < platform.y + 10 &&
-      player.y + player.height > platform.y
-    ) {
-      player.y = platform.y - player.height;
-      player.grounded = true;
-      player.dy = 0;
+// Update Explorer
+function updateExplorer() {
+  if (explorer.jump) {
+    explorer.dy += 0.5; // Gravity
+    explorer.y += explorer.dy;
+    if (explorer.y >= 300) {
+      explorer.y = 300;
+      explorer.jump = false;
     }
-  });
+  }
 }
 
-// Game Loop
-function update() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawBackground();
-  drawPlatforms();
-  drawPlayer();
-  movePlayer();
-  checkCollisions();
-  requestAnimationFrame(update);
-}
-
-// Controls
+// Key Handlers
 document.addEventListener("keydown", e => {
-  if (e.key === "ArrowRight") player.dx = player.speed;
-  if (e.key === "ArrowLeft") player.dx = -player.speed;
-  if (e.key === " " && player.grounded) {
-    player.dy = player.jumpPower;
-    player.grounded = false;
+  if (e.key === "ArrowUp" && explorer.lane > 1 && !explorer.jump) {
+    explorer.lane -= 1;
+    explorer.y -= 50;
+  } else if (e.key === "ArrowDown") {
+    if (explorer.jump) return;
+    if (e.repeat) return; // Duck only once
+    explorer.duck = true;
+    explorer.height = 30; // Shrink height
+  } else if (e.key === " " && !explorer.jump) {
+    explorer.jump = true;
+    explorer.dy = -10; // Jump power
   }
 });
 
 document.addEventListener("keyup", e => {
-  if (e.key === "ArrowRight" || e.key === "ArrowLeft") player.dx = 0;
+  if (e.key === "ArrowDown") {
+    explorer.duck = false;
+    explorer.height = 50; // Restore height
+  }
 });
 
+// Game Loop
+function updateGame() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(roadImg, 0, 350, 800, 50);
+
+  drawExplorer();
+  drawDino();
+  drawObstacles();
+
+  moveObstacles();
+  updateExplorer();
+
+  if (frame % 150 === 0) addObstacle();
+  frame++;
+  if (frame % 60 === 0) gameSpeed += 0.1; // Increase speed gradually
+
+  requestAnimationFrame(updateGame);
+}
+
 // Start Game
-update();
+updateGame();
