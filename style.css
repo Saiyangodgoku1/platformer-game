@@ -1,10 +1,8 @@
 body {
   margin: 0;
   overflow: hidden;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: #87CEEB;
+  background: url("./assets/background/desert-bg.png") repeat-x;
+  background-size: cover;
 }
 
 canvas {
